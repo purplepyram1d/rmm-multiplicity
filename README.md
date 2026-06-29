@@ -3,7 +3,7 @@
 This repository contains the rules, configurations, scripts, screenshots, and test data for detecting RMM (Remote Monitoring and Management) tool multiplicity on the same host using Sysmon and Wazuh in the homelab environment.
 
 ## Purpose
-The project implements detection for when multiple distinct RMM vendors are active on a single Windows endpoint (e.g. DC01). This is based on Sysmon Event ID 1 process creation events, using embedded PE metadata like Company name or OriginalFileName to identify RMM tools in a rename-resistant way. Wazuh rules then correlate these events for multiplicity alerts.
+The project implements detection for when multiple distinct RMM vendors are active on a single Windows endpoint. This is based on Sysmon Event ID 1 process creation events, using embedded PE metadata like Company name or OriginalFileName to identify RMM tools in a rename-resistant way. Wazuh rules then correlate these events for multiplicity alerts.
 
 See the associated writeup for full context on the RMM abuse detection use case.
 
