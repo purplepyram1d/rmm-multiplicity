@@ -1,0 +1,12 @@
+<group name="local,tuning,">
+
+  <!-- 100250: suppress the benign 92213 critical raised on PowerShell's own
+       __PSScriptPolicyTest_*.ps1 execution-policy probe files. Scoped tight by
+       targetFilename, so any OTHER executable dropped in Temp still alerts. -->
+  <rule id="100250" level="0">
+    <if_sid>92213</if_sid>
+    <field name="win.eventdata.targetFilename">__PSScriptPolicyTest</field>
+    <description>Benign: PowerShell execution-policy probe file (tuned out)</description>
+  </rule>
+
+</group>

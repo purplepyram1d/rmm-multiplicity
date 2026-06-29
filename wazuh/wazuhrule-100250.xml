@@ -1,5 +1,0 @@
-<rule id="100250" level="0">
-  <if_sid>92213</if_sid>
-  <field name="win.eventdata.targetFilename">__PSScriptPolicyTest</field>
-  <description>Benign: PowerShell execution-policy probe file (tuned out)</description>
-</rule>
