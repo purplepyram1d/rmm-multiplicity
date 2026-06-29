@@ -17,6 +17,7 @@ Sysmon logs process creation on the endpoint and tags known RMM tools by their b
 - `wazuh/` - the Wazuh rules above.
 - `scripts/` - the diagnostics I used to confirm the pipeline was working.
 - `evidence/` - screenshots of the rules firing, plus a sample alert.
+- `lab-techniques/` - small scripts to reproduce each rule firing, plus build gotchas.
 
 The full setup and testing walkthrough is in the article.
 
