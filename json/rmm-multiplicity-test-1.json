@@ -1,0 +1,114 @@
+{
+  "_index": "wazuh-alerts-4.x-2026.06.29",
+  "_id": "adsWEZ8B7EIPBhKqNazc",
+  "_version": 1,
+  "_score": null,
+  "_source": {
+    "input": {
+      "type": "log"
+    },
+    "agent": {
+      "ip": "10.10.10.11",
+      "name": "DC01",
+      "id": "001"
+    },
+    "manager": {
+      "name": "siem01"
+    },
+    "data": {
+      "win": {
+        "eventdata": {
+          "originalFileName": "TeamViewer.exe",
+          "image": "C:\\\\Program Files\\\\TeamViewer\\\\TeamViewer.exe",
+          "product": "TeamViewer Full",
+          "parentProcessGuid": "{23c4e474-67b8-6a41-9d00-000000001800}",
+          "description": "TeamViewer",
+          "logonGuid": "{23c4e474-67b2-6a41-5969-0f0000000000}",
+          "parentCommandLine": "\\\"C:\\\\Windows\\\\Explorer.EXE\\\" /NoUACCheck",
+          "processGuid": "{23c4e474-d06c-6a41-d304-000000001800}",
+          "logonId": "0xf6959",
+          "parentProcessId": "6388",
+          "processId": "6896",
+          "currentDirectory": "C:\\\\Program Files\\\\TeamViewer\\\\",
+          "utcTime": "2026-06-29 01:54:52.130",
+          "hashes": "SHA1=37A1B530F9864B12AA0BEBB03D4D30ECB6812A11,MD5=2329E3CCA3EDF9C9B6FD4E0F5E6AF67F,SHA256=452ACDC46E96548EA84555CB2960160AB88C8F8B02AF5F00519CABE0DB6C6B3C,IMPHASH=8953F0CB4AE46C6FE315B39F8529708B",
+          "parentImage": "C:\\\\Windows\\\\explorer.exe",
+          "ruleName": "technique_id=T1204,technique_name=User Execution",
+          "company": "TeamViewer Germany GmbH",
+          "commandLine": "\\\"C:\\\\Program Files\\\\TeamViewer\\\\TeamViewer.exe\\\"",
+          "integrityLevel": "High",
+          "fileVersion": "15.79.4.0",
+          "user": "CORP\\\\Administrator",
+          "terminalSessionId": "1",
+          "parentUser": "CORP\\\\Administrator"
+        },
+        "system": {
+          "eventID": "1",
+          "keywords": "0x8000000000000000",
+          "providerGuid": "{5770385f-c22a-43e0-bf4c-06f5698ffbd9}",
+          "level": "4",
+          "channel": "Microsoft-Windows-Sysmon/Operational",
+          "opcode": "0",
+          "message": "\"Process Create:\r\nRuleName: technique_id=T1204,technique_name=User Execution\r\nUtcTime: 2026-06-29 01:54:52.130\r\nProcessGuid: {23c4e474-d06c-6a41-d304-000000001800}\r\nProcessId: 6896\r\nImage: C:\\Program Files\\TeamViewer\\TeamViewer.exe\r\nFileVersion: 15.79.4.0\r\nDescription: TeamViewer\r\nProduct: TeamViewer Full\r\nCompany: TeamViewer Germany GmbH\r\nOriginalFileName: TeamViewer.exe\r\nCommandLine: \"C:\\Program Files\\TeamViewer\\TeamViewer.exe\" \r\nCurrentDirectory: C:\\Program Files\\TeamViewer\\\r\nUser: CORP\\Administrator\r\nLogonGuid: {23c4e474-67b2-6a41-5969-0f0000000000}\r\nLogonId: 0xF6959\r\nTerminalSessionId: 1\r\nIntegrityLevel: High\r\nHashes: SHA1=37A1B530F9864B12AA0BEBB03D4D30ECB6812A11,MD5=2329E3CCA3EDF9C9B6FD4E0F5E6AF67F,SHA256=452ACDC46E96548EA84555CB2960160AB88C8F8B02AF5F00519CABE0DB6C6B3C,IMPHASH=8953F0CB4AE46C6FE315B39F8529708B\r\nParentProcessGuid: {23c4e474-67b8-6a41-9d00-000000001800}\r\nParentProcessId: 6388\r\nParentImage: C:\\Windows\\explorer.exe\r\nParentCommandLine: \"C:\\Windows\\Explorer.EXE\" /NoUACCheck\r\nParentUser: CORP\\Administrator\"",
+          "version": "5",
+          "systemTime": "2026-06-29T01:54:52.9377265Z",
+          "eventRecordID": "17251",
+          "threadID": "4260",
+          "computer": "DC01.corp.local",
+          "task": "1",
+          "processID": "2496",
+          "severityValue": "INFORMATION",
+          "providerName": "Microsoft-Windows-Sysmon"
+        }
+      }
+    },
+    "rule": {
+      "firedtimes": 1,
+      "mail": true,
+      "level": 12,
+      "description": "RMM MULTIPLICITY: 2+ distinct remote-access tool vendors on DC01.corp.local",
+      "groups": [
+        "sysmon",
+        "rmm",
+        "rmm_detected",
+        "rmm_multiplicity"
+      ],
+      "mitre": {
+        "technique": [
+          "Remote Access Software"
+        ],
+        "id": [
+          "T1219"
+        ],
+        "tactic": [
+          "Command and Control"
+        ]
+      },
+      "id": "100211",
+      "frequency": 2
+    },
+    "location": "EventChannel",
+    "decoder": {
+      "name": "windows_eventchannel"
+    },
+    "id": "1782698093.38689680",
+    "full_log": "{\"win\":{\"system\":{\"providerName\":\"Microsoft-Windows-Sysmon\",\"providerGuid\":\"{5770385f-c22a-43e0-bf4c-06f5698ffbd9}\",\"eventID\":\"1\",\"version\":\"5\",\"level\":\"4\",\"task\":\"1\",\"opcode\":\"0\",\"keywords\":\"0x8000000000000000\",\"systemTime\":\"2026-06-29T01:54:52.9377265Z\",\"eventRecordID\":\"17251\",\"processID\":\"2496\",\"threadID\":\"4260\",\"channel\":\"Microsoft-Windows-Sysmon/Operational\",\"computer\":\"DC01.corp.local\",\"severityValue\":\"INFORMATION\",\"message\":\"\\\"Process Create:\\r\\nRuleName: technique_id=T1204,technique_name=User Execution\\r\\nUtcTime: 2026-06-29 01:54:52.130\\r\\nProcessGuid: {23c4e474-d06c-6a41-d304-000000001800}\\r\\nProcessId: 6896\\r\\nImage: C:\\\\Program Files\\\\TeamViewer\\\\TeamViewer.exe\\r\\nFileVersion: 15.79.4.0\\r\\nDescription: TeamViewer\\r\\nProduct: TeamViewer Full\\r\\nCompany: TeamViewer Germany GmbH\\r\\nOriginalFileName: TeamViewer.exe\\r\\nCommandLine: \\\"C:\\\\Program Files\\\\TeamViewer\\\\TeamViewer.exe\\\" \\r\\nCurrentDirectory: C:\\\\Program Files\\\\TeamViewer\\\\\\r\\nUser: CORP\\\\Administrator\\r\\nLogonGuid: {23c4e474-67b2-6a41-5969-0f0000000000}\\r\\nLogonId: 0xF6959\\r\\nTerminalSessionId: 1\\r\\nIntegrityLevel: High\\r\\nHashes: SHA1=37A1B530F9864B12AA0BEBB03D4D30ECB6812A11,MD5=2329E3CCA3EDF9C9B6FD4E0F5E6AF67F,SHA256=452ACDC46E96548EA84555CB2960160AB88C8F8B02AF5F00519CABE0DB6C6B3C,IMPHASH=8953F0CB4AE46C6FE315B39F8529708B\\r\\nParentProcessGuid: {23c4e474-67b8-6a41-9d00-000000001800}\\r\\nParentProcessId: 6388\\r\\nParentImage: C:\\\\Windows\\\\explorer.exe\\r\\nParentCommandLine: \\\"C:\\\\Windows\\\\Explorer.EXE\\\" /NoUACCheck\\r\\nParentUser: CORP\\\\Administrator\\\"\"},\"eventdata\":{\"ruleName\":\"technique_id=T1204,technique_name=User Execution\",\"utcTime\":\"2026-06-29 01:54:52.130\",\"processGuid\":\"{23c4e474-d06c-6a41-d304-000000001800}\",\"processId\":\"6896\",\"image\":\"C:\\\\\\\\Program Files\\\\\\\\TeamViewer\\\\\\\\TeamViewer.exe\",\"fileVersion\":\"15.79.4.0\",\"description\":\"TeamViewer\",\"product\":\"TeamViewer Full\",\"company\":\"TeamViewer Germany GmbH\",\"originalFileName\":\"TeamViewer.exe\",\"commandLine\":\"\\\\\\\"C:\\\\\\\\Program Files\\\\\\\\TeamViewer\\\\\\\\TeamViewer.exe\\\\\\\"\",\"currentDirectory\":\"C:\\\\\\\\Program Files\\\\\\\\TeamViewer\\\\\\\\\",\"user\":\"CORP\\\\\\\\Administrator\",\"logonGuid\":\"{23c4e474-67b2-6a41-5969-0f0000000000}\",\"logonId\":\"0xf6959\",\"terminalSessionId\":\"1\",\"integrityLevel\":\"High\",\"hashes\":\"SHA1=37A1B530F9864B12AA0BEBB03D4D30ECB6812A11,MD5=2329E3CCA3EDF9C9B6FD4E0F5E6AF67F,SHA256=452ACDC46E96548EA84555CB2960160AB88C8F8B02AF5F00519CABE0DB6C6B3C,IMPHASH=8953F0CB4AE46C6FE315B39F8529708B\",\"parentProcessGuid\":\"{23c4e474-67b8-6a41-9d00-000000001800}\",\"parentProcessId\":\"6388\",\"parentImage\":\"C:\\\\\\\\Windows\\\\\\\\explorer.exe\",\"parentCommandLine\":\"\\\\\\\"C:\\\\\\\\Windows\\\\\\\\Explorer.EXE\\\\\\\" /NoUACCheck\",\"parentUser\":\"CORP\\\\\\\\Administrator\"}}}",
+    "timestamp": "2026-06-28T20:54:53.765-0500"
+  },
+  "fields": {
+    "timestamp": [
+      "2026-06-29T01:54:53.765Z"
+    ]
+  },
+  "highlight": {
+    "rule.id": [
+      "@opensearch-dashboards-highlighted-field@100211@/opensearch-dashboards-highlighted-field@"
+    ],
+    "manager.name": [
+      "@opensearch-dashboards-highlighted-field@siem01@/opensearch-dashboards-highlighted-field@"
+    ]
+  },
+  "sort": [
+    1782698093765
+  ]
+}

@@ -1,0 +1,13 @@
+<group name="sysmon,rmm,">
+
+<!-- 100211: MULTIPLICITY. 2+ DISTINCT vendor Company values on the SAME host inside 600s. -->
+  <rule id="100211" level="12" frequency="2" timeframe="600">
+    <if_matched_sid>100210</if_matched_sid>
+    <same_field>win.system.computer</same_field>
+    <different_field>win.eventdata.company</different_field>
+    <description>RMM MULTIPLICITY: 2+ distinct remote-access tool vendors on $(win.system.computer)</description>
+    <mitre><id>T1219</id></mitre>
+    <group>rmm_detected,rmm_multiplicity,</group>
+  </rule>
+
+</group>

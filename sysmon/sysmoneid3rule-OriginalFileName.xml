@@ -1,0 +1,6 @@
+<RuleGroup groupRelation="or" name="technique_id=T1219,technique_name=Remote Access Software">
+  <ProcessCreate onmatch="include">
+    <OriginalFileName condition="is">AnyDesk.exe</OriginalFileName>
+    <OriginalFileName condition="is">ScreenConnect.Client.exe</OriginalFileName>
+  </ProcessCreate>
+</RuleGroup>

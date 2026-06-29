@@ -1,0 +1,10 @@
+<Sysmon schemaversion="4.90">
+  <EventFiltering>
+    <RuleGroup groupRelation="or" name="">
+      <ProcessCreate onmatch="include">
+        <Company name="technique_id=T1219,technique_name=Remote Access Software" condition="is">AnyDesk Software GmbH</Company>
+        <OriginalFileName name="technique_id=T1219,technique_name=Remote Access Software" condition="is">ScreenConnect.Client.exe</OriginalFileName>
+      </ProcessCreate>
+    </RuleGroup>
+  </EventFiltering>
+</Sysmon>
