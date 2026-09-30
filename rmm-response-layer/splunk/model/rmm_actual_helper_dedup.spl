@@ -1,0 +1,13 @@
+index=wazuh-alerts sourcetype="wazuh:alerts" earliest=1788118800 latest=1788120000
+| eval rule_id=tostring(mvindex('rule.id',0)), risk_object=lower(tostring(mvindex('agent.name',0))), event_id=tostring(mvindex(id,0))
+| search risk_object="ws01" rule_id IN ("100210","100211")
+| rex field=_raw "Company: (?<company>.*?)\\\\r\\\\nOriginalFileName:"
+| rex field=_raw "Image: (?<image>.*?)\\\\r\\\\nFileVersion:"
+| eval company=replace(company,"\\\\+r\\\\+n.*$",""), image=replace(image,"\\\\+r\\\\+n.*$","")
+| eval normalized_vendor=case(match(lower(company),"anydesk"),"anydesk",match(lower(company),"teamviewer"),"teamviewer",true(),"unknown")
+| eval session_bucket=floor(_time/600)
+| stats count as source_event_count sum(eval(if(normalized_vendor="teamviewer",1,0))) as teamviewer_helper_events dc(image) as distinct_images values(image) as images values(event_id) as source_event_ids values(normalized_vendor) as vendors min(_time) as first_seen max(_time) as last_seen by risk_object session_bucket
+| eval vendor_set=mvjoin(mvsort(vendors),","), signal_id="wazuh:100211", signal_family="multiplicity", risk_score=20, contribution_count=1, dedup_key=sha256(risk_object."|".vendor_set."|".session_bucket)
+| eval pass=if(vendor_set="anydesk,teamviewer" AND teamviewer_helper_events=7 AND contribution_count=1,"PASS","FAIL")
+| convert ctime(first_seen) ctime(last_seen)
+| table risk_object session_bucket vendor_set source_event_count teamviewer_helper_events distinct_images contribution_count risk_score dedup_key first_seen last_seen source_event_ids images pass

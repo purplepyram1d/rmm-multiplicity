@@ -1,0 +1,23 @@
+name: Custom.RMM.Gate6Quarantine
+description: |
+  Gate 6 client wrapper around Windows.Remediation.Quarantine. It carries the
+  RunId into the client flow request so the server guard can detect a repeated
+  Apply before launching another quarantine action.
+author: purplepyram1d
+type: CLIENT
+parameters:
+  - name: RunId
+  - name: PolicyName
+    default: RMMGate6Quarantine
+  - name: RemovePolicy
+    description: Set to Y only for reversal.
+sources:
+  - query: |
+      SELECT timestamp(epoch=now()) AS ActionTime,
+             RunId AS RunId,
+             PolicyName AS PolicyName,
+             if(condition=RemovePolicy='Y', then='Remove', else='Apply') AS Action,
+             *
+      FROM Artifact.Windows.Remediation.Quarantine(
+        PolicyName=PolicyName,
+        RemovePolicy=RemovePolicy)

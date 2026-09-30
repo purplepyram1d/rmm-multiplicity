@@ -1,0 +1,29 @@
+<group name="windows,system,rmm,persistence,">
+
+  <!-- Gate 2 generic service-registration normalization. Reuse built-in 61138 (New Windows Service
+       Created, EID 7045; decodes imagePath, accountName, and serviceName) and refine when the complete
+       service command line references a monitored non-standard path family. An earlier negate draft
+       mis-fired on a legitimate System32 control. This rule does not establish executable-token location,
+       user writability, malicious intent, signer identity, or tunnel identity. The attempted Sysmon EID 7
+       signer experiment was invalid and rolled back. Signer confirmation is deferred to the Gate 4
+       Velociraptor authenticode() collection. Feeds Gate 3 through rmm_persistence; no active response bound. -->
+
+  <!-- 100215: the complete service command line references Users, ProgramData, or PerfLogs. -->
+  <rule id="100215" level="10">
+    <if_sid>61138</if_sid>
+    <field name="win.eventdata.imagePath" type="pcre2">(?i)\\(?:Users|ProgramData|PerfLogs)\\</field>
+    <description>Service command line references a non-standard path: $(win.eventdata.serviceName) at $(win.eventdata.imagePath)</description>
+    <mitre><id>T1543.003</id></mitre>
+    <group>rmm_detected,rmm_persistence,</group>
+  </rule>
+
+  <!-- 100216: 100215 plus directly observed LocalSystem account context. -->
+  <rule id="100216" level="12">
+    <if_sid>100215</if_sid>
+    <field name="win.eventdata.accountName" type="pcre2">(?i)^LocalSystem$</field>
+    <description>Privileged service registration referencing a non-standard path: $(win.eventdata.serviceName) at $(win.eventdata.imagePath)</description>
+    <mitre><id>T1543.003</id></mitre>
+    <group>rmm_detected,rmm_persistence,</group>
+  </rule>
+
+</group>

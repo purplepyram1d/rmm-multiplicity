@@ -1,0 +1,37 @@
+<group name="sysmon,rmm,masquerade,">
+
+  <!-- Gate 2 masquerade normalization. Reuse the built-in Wazuh rule 61618 (Sysmon suspicious svchost,
+       if_group sysmon_event1 + image~svchost.exe) as the trigger, then REFINE: require the image basename
+       to be svchost.exe and NOT under an approved architecture-aware system path (x64: System32, SysWOW64).
+       61618 alone fires on all svchost (broad); this makes the OFF-PATH case the terminal finding and tags
+       it into the RMM masquerade signal family for Gate 3. Legit System32 svchost stays out of this rule
+       (61618 still fires on it, which is pre-existing built-in behavior, not an rmm_masquerade signal).
+       PCRE2 uses literal double-backslash separators + noncapturing group. Validated live (logtest replay
+       does not fire eventchannel rule trees in this build).
+       2026-09-12 (Claude Code, KB-2026-0033 / INC-2026-0034): the exclusion was two separate
+       <field name="win.eventdata.image"> conditions (a positive plus a negate). Wazuh does not reliably
+       AND two conditions on the same field, so the negate was dropped and 100220 fired on the legitimate
+       System32 svchost (18 false positives on WS01). Collapsed into ONE pcre2 negative-lookahead so a single
+       field condition both requires svchost.exe and excludes the System32/SysWOW64 path. -->
+  <!-- 2026-09-12 Codex: anchor the exclusion to the actual C:\Windows root; accept native and eventchannel-escaped separators. -->
+  <rule id="100220" level="12">
+    <if_sid>61618</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)^(?!C:\\{1,2}Windows\\{1,2}(?:System32|SysWOW64)\\{1,2}svchost\.exe$).*\\{1,2}svchost\.exe$</field>
+    <description>Off-path svchost.exe execution (RMM masquerade) from $(win.eventdata.image)</description>
+    <mitre><id>T1036.005</id></mitre>
+    <group>rmm_detected,rmm_masquerade,</group>
+  </rule>
+
+  <!-- Strengthened child. WS02 Sysmon emits no Authenticode signer, so the strengthening signal is an
+       explicit non-Microsoft PE Company (concrete inconsistent identity). 100220 alone still catches the
+       genuine-but-off-path (copied Microsoft svchost) case; 100221 escalates only on a concrete
+       non-Microsoft Company. -->
+  <rule id="100221" level="13">
+    <if_sid>100220</if_sid>
+    <field name="win.eventdata.company" negate="yes" type="pcre2">(?i)^Microsoft Corporation$</field>
+    <description>Off-path svchost.exe masquerade with non-Microsoft PE identity: image $(win.eventdata.image), company $(win.eventdata.company)</description>
+    <mitre><id>T1036.005</id></mitre>
+    <group>rmm_detected,rmm_masquerade,</group>
+  </rule>
+
+</group>

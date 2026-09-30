@@ -1,0 +1,77 @@
+name: Custom.RMM.Gate5GuardedQuarantine
+description: |
+  Server-side Gate 5 guard for the built-in Windows quarantine artifact.
+  The only eligible target is the exact WS02 client and hostname pair. Apply
+  also requires an explicit approval string, console confirmation, snapshot
+  confirmation, and a Gate 5 RunId. Remove is always permitted for the exact
+  WS02 identity so recovery cannot be blocked by an expired approval. Unknown,
+  mismatched, and protected targets fail closed without starting a client flow.
+author: purplepyram1d
+type: SERVER
+required_permissions:
+  - COLLECT_CLIENT
+parameters:
+  - name: TargetClientId
+  - name: ExpectedHostname
+  - name: Action
+    description: Apply or Remove.
+  - name: RunId
+  - name: Approval
+    description: Apply requires the exact value APPROVED.
+  - name: ConsoleVerified
+    type: bool
+  - name: SnapshotVerified
+    type: bool
+  - name: PolicyName
+    default: RMMGate5Quarantine
+sources:
+  - query: |
+      LET client_map <= to_dict(item={
+        SELECT client_id AS _key, os_info.hostname AS _value FROM clients() })
+      LET actual_hostname <= get(item=client_map, field=TargetClientId)
+      LET identity_allowed <= TargetClientId = 'C.e07d49d200b14e75'
+        AND actual_hostname =~ '(?i)^WS02$'
+        AND ExpectedHostname =~ '(?i)^WS02$'
+      LET action_valid <= Action =~ '^(Apply|Remove)$'
+      LET run_valid <= RunId =~ '^RUN-[0-9]{8}-G5[A-Z0-9-]+$'
+      LET apply_ready <= Action = 'Apply'
+        AND Approval = 'APPROVED'
+        AND ConsoleVerified
+        AND SnapshotVerified
+      LET remove_ready <= Action = 'Remove'
+      LET allowed <= identity_allowed AND action_valid AND run_valid
+        AND (apply_ready OR remove_ready)
+      SELECT * FROM if(
+        condition=allowed,
+        then={
+          SELECT timestamp(epoch=now()) AS DecisionTime,
+                 RunId AS RunId,
+                 TargetClientId AS TargetClientId,
+                 actual_hostname AS ActualHostname,
+                 Action AS Action,
+                 'ALLOW' AS Decision,
+                 collect_client(
+                   client_id=TargetClientId,
+                   artifacts='Windows.Remediation.Quarantine',
+                   env=dict(
+                     PolicyName=PolicyName,
+                     RemovePolicy=if(condition=Action='Remove', then='Y', else='')
+                   )).flow_id AS FlowId
+          FROM scope()
+        },
+        else={
+          SELECT timestamp(epoch=now()) AS DecisionTime,
+                 RunId AS RunId,
+                 TargetClientId AS TargetClientId,
+                 actual_hostname AS ActualHostname,
+                 Action AS Action,
+                 'DENY' AS Decision,
+                 if(condition=NOT identity_allowed,
+                    then='target is not the exact WS02 client and hostname pair',
+                    else=if(condition=NOT action_valid,
+                      then='invalid action',
+                      else=if(condition=NOT run_valid,
+                        then='invalid Gate 5 RunId',
+                        else='Apply requires approval, console, and snapshot confirmation'))) AS Reason
+          FROM scope()
+        })

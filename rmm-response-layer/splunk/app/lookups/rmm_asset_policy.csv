@@ -1,0 +1,7 @@
+risk_object,asset_class,action_cap,policy_reason
+ws01,workstation,collect,comparison baseline requires manual containment approval
+ws02,workstation,contain_after_gate5,primary response target; containment requires the validated manual server guard
+dc01,domain_controller,collect,domain controller is permanently protected from automatic containment
+srv01,server,collect,server availability requires human-gated containment
+siem01,control_plane,alert,detection and response control plane
+siem02,control_plane,alert,risk decision control plane

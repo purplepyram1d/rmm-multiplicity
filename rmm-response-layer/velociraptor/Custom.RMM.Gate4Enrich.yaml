@@ -1,0 +1,58 @@
+name: Custom.RMM.Gate4Enrich
+description: |
+  Read-only RMM Gate 4 enrichment. For a selected RMM finding, collects the
+  Authenticode signer, PE hash, file stat, and process lineage of a target image
+  on the endpoint. No modification, service change, registry write, or
+  containment. Signer state is reported explicitly (signer_trusted /
+  signed_untrusted / unsigned_or_absent) so that "no signature" is never confused
+  with "collection failed". Returns the RunId so the collection joins the shared
+  case timeline.
+author: purplepyram1d (RMM co-op, Gate 4)
+type: CLIENT
+parameters:
+  - name: TargetGlob
+    description: Glob or path of the image to inspect for signer / hash / stat.
+    default: "C:/Windows/System32/svchost.exe"
+  - name: ProcRegex
+    description: Regex matched against process Exe for lineage collection.
+    default: "svchost\\.exe$"
+  - name: RunId
+    description: Case RunId to join this collection to the shared timeline.
+    default: "RUN-UNSET"
+sources:
+  - name: Signer
+    query: |
+      LET files = SELECT OSPath, Size, Mtime FROM glob(globs=TargetGlob)
+      LET enriched = SELECT OSPath AS P, Size AS Sz, Mtime AS Mt,
+             authenticode(filename=OSPath) AS Auth,
+             hash(path=OSPath) AS H
+        FROM files
+      SELECT RunId AS RunId,
+             P AS TargetPath,
+             Sz AS Size,
+             Mt AS ModTime,
+             H.SHA256 AS SHA256,
+             Auth.SubjectName AS SignerSubject,
+             Auth.IssuerName AS SignerIssuer,
+             Auth.ProgramName AS ProgramName,
+             Auth.Trusted AS Trusted,
+             if(condition=Auth.Trusted =~ "^trusted$",
+                then="signer_trusted",
+                else=if(condition=Auth.SubjectName,
+                        then="signed_untrusted",
+                        else="unsigned_or_absent")) AS SignerState
+        FROM enriched
+  - name: Lineage
+    query: |
+      LET procs <= SELECT Pid, Ppid, Name, Exe, CommandLine, CreateTime
+        FROM pslist()
+      LET name_map <= to_dict(item={
+        SELECT format(format="%d", args=Pid) AS _key, Name AS _value FROM procs })
+      LET exe_map <= to_dict(item={
+        SELECT format(format="%d", args=Pid) AS _key, Exe AS _value FROM procs })
+      SELECT RunId AS RunId, Pid, Ppid AS ParentPid, Name, Exe, CommandLine,
+             CreateTime,
+             get(item=name_map, field=format(format="%d", args=Ppid)) AS ParentName,
+             get(item=exe_map, field=format(format="%d", args=Ppid)) AS ParentExe
+        FROM procs
+       WHERE Exe =~ ProcRegex

@@ -16,5 +16,15 @@ The things that cost real time. Detail and screenshots are in the article.
 
 ## Reproducing the causal test
 - **A running RMM hands off** instead of spawning a fresh process. Spawn a fresh COPY from a no-space path; it emits its Event ID 1 at creation regardless of handoff or crash.
-- **Integrity levels:** a user launch is Medium/High; a service launch is SYSTEM. A second RMM at SYSTEM means a service deployed it, not a person. `PsExec -s` runs the spawn as SYSTEM in the lab.
+- **Integrity levels:** a user launch is Medium/High; a service launch is SYSTEM. A second RMM at SYSTEM means a service-context mechanism deployed it, not an ordinary interactive shell. The current helper uses a built-in scheduled task for the controlled SYSTEM run.
 - **A real `.exe` in Temp trips rule 92213** ("executable dropped in malware-common folder"). Installers and these test copies will fire it - benign here, but keep that rule; attackers stage from Temp. Do not broadly mute it.
+
+## Findings carried forward from Part 2
+- **Use `C:\Lab`, not `C:\Windows\Temp`, for the controlled decoys.** Wazuh keeps one winning rule per event. A higher-level built-in Temp rule can suppress `100210`; any rule chained from `100210` then goes quiet too.
+- **One incident can produce several `100211` alerts.** TeamViewer starts several processes with the same vendor metadata. Each new qualifying event re-evaluates the composite rule after another vendor is already in the window.
+- **A composite rule does not carry the first event's vendor into the final alert.** `different_field` proves the values differed, but the rendered description can substitute only fields from the event that completed the correlation.
+- **Restarting the Wazuh manager clears composite state.** Do this before a one-vendor negative control so a prior vendor is not still inside the 600-second window.
+- **Filter Sysmon XML by the named `Image` field.** A loose search of rendered `Message` text can select `WerFault.exe` merely because the target path appears in `ParentImage`.
+- **Velociraptor tracker IDs are not Sysmon ProcessGuids.** Resolve the current `PID-starttime` tracker identifier, then call `process_tracker_callchain()` through `foreach`.
+- **Collect signer evidence before cleanup.** `authenticode()` reads the executable from disk at query time; deleting the staged file first produces an empty signer.
+- **Multiplicity and causality answer different questions.** Parallel launches from PowerShell can fire `100211` while `100212-100214` correctly remain silent because neither RMM is the parent.

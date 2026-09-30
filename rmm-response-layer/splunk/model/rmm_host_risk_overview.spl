@@ -1,0 +1,21 @@
+| inputlookup rmm_asset_policy.csv
+| eval signal_family="__baseline__", family_score=0, last_contribution=0
+| fields risk_object signal_family family_score last_contribution
+| append [ search index=rmm_risk earliest=-30d@d latest=now
+    | eval risk_score=tonumber(risk_score), expires_at=tonumber(expires_at)
+    | eval valid=if(isnotnull(risk_object) AND isnotnull(signal_family) AND isnotnull(dedup_key) AND isnotnull(risk_score) AND isnotnull(expires_at),1,0)
+    | where valid=1 AND expires_at>now()
+    | stats max(risk_score) as family_score max(_time) as last_contribution values(signal_id) as active_signals by risk_object signal_family ]
+| stats sum(family_score) as current_score max(last_contribution) as last_contribution values(active_signals) as active_signals by risk_object
+| lookup rmm_asset_policy.csv risk_object OUTPUT asset_class action_cap policy_reason
+| eval asset_class=coalesce(asset_class,"unknown"), action_cap=coalesce(action_cap,"alert"), policy_reason=coalesce(policy_reason,"unknown asset fails closed")
+| eval score_tier=case(current_score<20,"observe",current_score<40,"enrich",current_score<70,"collect",true(),"contain-eligible")
+| eval score_rank=case(score_tier="observe",0,score_tier="enrich",1,score_tier="collect",2,score_tier="contain-eligible",3)
+| eval cap_rank=case(action_cap="alert",0,action_cap="collect",2,action_cap="contain_after_gate5",2,true(),0)
+| eval effective_rank=if(score_rank<cap_rank,score_rank,cap_rank)
+| eval effective_action=case(effective_rank=0,"alert",effective_rank=1,"enrich",effective_rank=2,"collect",effective_rank=3,"contain")
+| eval response_authority=case(action_cap="contain_after_gate5","collect_only_until_gate5",action_cap="collect","collect_only",action_cap="alert","alert_only",true(),"alert_only")
+| eval withheld_reason=if(score_rank>cap_rank,policy_reason,null())
+| eval last_contribution_utc=if(last_contribution>0,strftime(last_contribution,"%Y-%m-%dT%H:%M:%SZ"),null())
+| table risk_object asset_class current_score score_tier effective_action response_authority action_cap active_signals last_contribution_utc withheld_reason policy_reason
+| sort 0 risk_object

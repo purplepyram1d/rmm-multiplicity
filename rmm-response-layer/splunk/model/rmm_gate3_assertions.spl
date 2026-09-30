@@ -1,0 +1,45 @@
+| makeresults count=3
+| streamstats count as n
+| eval raw_host=case(n=1,"WS02",n=2,"ws02.corp.local",n=3,"Ws02"), normalized_vendor="teamviewer", session_bucket=floor(now()/600)
+| eval risk_object=lower(replace(raw_host,"\\..*$","")), dedup_key=sha256(risk_object."|".normalized_vendor."|".session_bucket)
+| stats dc(dedup_key) as observed
+| eval test_id="G3-NORMALIZE-DEDUP", expected="1 canonical vendor/session contribution", observed=tostring(observed), pass=if(observed=1,"PASS","FAIL")
+| append [ | makeresults count=4
+    | streamstats count as n
+    | eval signal_family=if(n<=3,"masquerade","service_persistence"), risk_score=if(n<=3,45,25)
+    | stats max(risk_score) as family_score by signal_family
+    | stats sum(family_score) as observed
+    | eval test_id="G3-FAMILY-MAX", expected="70", observed=tostring(observed), pass=if(observed=70,"PASS","FAIL") ]
+| append [ | makeresults count=2
+    | streamstats count as n
+    | eval evaluation_time=now(), risk_score=if(n=1,45,5), expires_at=if(n=1,evaluation_time-1,evaluation_time+1800)
+    | where expires_at>evaluation_time
+    | stats sum(risk_score) as observed
+    | eval test_id="G3-EXPIRY", expected="5", observed=tostring(observed), pass=if(observed=5,"PASS","FAIL") ]
+| append [ | makeresults count=4
+    | streamstats count as n
+    | eval current_score=case(n=1,5,n=2,25,n=3,45,n=4,70), expected_tier=case(n=1,"observe",n=2,"enrich",n=3,"collect",n=4,"contain-eligible")
+    | eval observed_tier=case(current_score<20,"observe",current_score<40,"enrich",current_score<70,"collect",true(),"contain-eligible")
+    | stats sum(eval(if(expected_tier=observed_tier,1,0))) as observed
+    | eval test_id="G3-TIERS", expected="4", observed=tostring(observed), pass=if(observed=4,"PASS","FAIL") ]
+| append [ | makeresults count=6
+    | streamstats count as n
+    | eval risk_object=case(n=1,"ws02",n=2,"dc01",n=3,"srv01",n=4,"siem01",n=5,"siem02",n=6,"unknown-host"), current_score=95
+    | eval action_cap=case(risk_object="ws02","contain_after_gate5",risk_object IN ("dc01","srv01"),"collect",risk_object IN ("siem01","siem02"),"alert",true(),"alert"), score_rank=3, cap_rank=case(action_cap="alert",0,action_cap="collect",2,action_cap="contain_after_gate5",2,true(),0), effective_rank=if(score_rank<cap_rank,score_rank,cap_rank)
+    | eval effective_action=case(effective_rank=0,"alert",effective_rank=1,"enrich",effective_rank=2,"collect",effective_rank=3,"contain"), expected_action=if(n<=3,"collect","alert")
+    | stats sum(eval(if(effective_action=expected_action,1,0))) as observed
+    | eval test_id="G3-PROTECTED-CAPS", expected="6", observed=tostring(observed), pass=if(observed=6,"PASS","FAIL") ]
+| append [ | makeresults count=3
+    | streamstats count as n
+    | eval risk_object=if(n=1,null(),"ws02"), dedup_key=if(n=2,null(),"key".n), risk_score=45, expires_at=now()+3600
+    | eval valid=if(isnotnull(risk_object) AND isnotnull(dedup_key) AND isnotnull(risk_score) AND isnotnull(expires_at),1,0)
+    | stats sum(valid) as scored sum(eval(if(valid=0,1,0))) as rejected
+    | eval observed="scored=".scored.",rejected=".rejected, test_id="G3-MALFORMED-FAIL-CLOSED", expected="scored=1,rejected=2", pass=if(observed=expected,"PASS","FAIL") ]
+| append [ | makeresults count=2
+    | streamstats count as n
+    | eval evaluation_time=now(), event_time=evaluation_time-7200, expires_at=if(n=1,evaluation_time-1,evaluation_time+1800), index_time=evaluation_time
+    | eval late=if(index_time>expires_at,1,0), active=if(expires_at>evaluation_time,1,0)
+    | stats sum(late) as late_count sum(active) as active_count
+    | eval observed="late=".late_count.",active=".active_count, test_id="G3-LATE-DATA", expected="late=1,active=1", pass=if(observed=expected,"PASS","FAIL") ]
+| table test_id expected observed pass
+| sort 0 test_id

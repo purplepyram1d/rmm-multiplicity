@@ -1,0 +1,7 @@
+index=rmm_risk earliest=-30d@d latest=now
+| eval risk_score=tonumber(risk_score), expires_at=tonumber(expires_at), active=if(expires_at>now(),"active","expired")
+| lookup rmm_asset_policy.csv risk_object OUTPUT asset_class action_cap policy_reason
+| eval asset_class=coalesce(asset_class,"unknown"), action_cap=coalesce(action_cap,"alert")
+| eval event_time_utc=coalesce(event_time_utc,strftime(_time,"%Y-%m-%dT%H:%M:%SZ")), expires_at_utc=coalesce(expires_at_utc,strftime(expires_at,"%Y-%m-%dT%H:%M:%SZ"))
+| table _time event_time_utc expires_at_utc active risk_object asset_class signal_family signal_id risk_score event_id event_record_id run_id process_guid file_sha256 dedup_key evidence_uri response_authority action_state action_cap
+| sort 0 - _time

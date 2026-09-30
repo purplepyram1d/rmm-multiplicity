@@ -1,0 +1,32 @@
+<group name="sysmon,rmm,">
+
+  <!-- 100212: a different-vendor RMM process spawned TeamViewer (causal, cross-vendor parent-child). -->
+  <rule id="100212" level="13">
+    <if_sid>100210</if_sid>
+    <field name="win.eventdata.company">TeamViewer</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(anydesk|screenconnect|connectwise|atera|splashtop|meshagent)</field>
+    <description>Cross-vendor RMM spawn: TeamViewer launched by $(win.eventdata.parentImage)</description>
+    <mitre><id>T1219</id></mitre>
+    <group>rmm_detected,rmm_secondary_deploy,</group>
+  </rule>
+
+  <!-- 100213: a different-vendor RMM process spawned AnyDesk (causal, cross-vendor parent-child). -->
+  <rule id="100213" level="13">
+    <if_sid>100210</if_sid>
+    <field name="win.eventdata.company">AnyDesk</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)(teamviewer|screenconnect|connectwise|atera|splashtop|meshagent)</field>
+    <description>Cross-vendor RMM spawn: AnyDesk launched by $(win.eventdata.parentImage)</description>
+    <mitre><id>T1219</id></mitre>
+    <group>rmm_detected,rmm_secondary_deploy,</group>
+  </rule>
+
+  <!-- 100214: escalate when the spawned RMM ran as SYSTEM (the strongest secondary-deploy signal). -->
+  <rule id="100214" level="14">
+    <if_sid>100212,100213</if_sid>
+    <field name="win.eventdata.integrityLevel">System</field>
+    <description>HIGH FIDELITY secondary RMM deploy under SYSTEM: $(win.eventdata.company) spawned by $(win.eventdata.parentImage)</description>
+    <mitre><id>T1219</id></mitre>
+    <group>rmm_detected,rmm_secondary_deploy,</group>
+  </rule>
+
+</group>

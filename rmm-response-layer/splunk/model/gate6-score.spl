@@ -1,0 +1,15 @@
+index=wazuh-alerts sourcetype="wazuh:alerts" earliest=-24h latest=now "RUN-20260902-G6P1"
+| search rule.id="100221" OR rule.id="100216"
+| eval risk_object=lower(replace(tostring(mvindex('agent.name',0)),"\\..*$",""))
+| eval signal_id="wazuh:".tostring(mvindex('rule.id',0))
+| eval signal_family=case(signal_id="wazuh:100221","masquerade",signal_id="wazuh:100216","service_persistence",true(),"unrecognized")
+| eval risk_score=case(signal_id="wazuh:100221",45,signal_id="wazuh:100216",25,true(),0)
+| rex field=_raw "(?<run_id>RUN-[0-9]{8}-G6[A-Z0-9-]+)"
+| where risk_object="ws02" AND run_id="RUN-20260902-G6P1" AND risk_score>0
+| stats max(risk_score) AS family_score values(signal_id) AS signal_ids count AS source_events by risk_object run_id signal_family
+| eventstats sum(family_score) AS effective_score values(signal_ids) AS contributing_signals sum(source_events) AS contributing_source_events by risk_object run_id
+| eval score_tier=case(effective_score<20,"observe",effective_score<40,"enrich",effective_score<70,"collect",true(),"contain-eligible")
+| eval response_authority="manual_gate6_only", automatic_containment="disabled"
+| stats first(effective_score) AS effective_score first(score_tier) AS score_tier values(contributing_signals) AS contributing_signals first(contributing_source_events) AS contributing_source_events values(signal_family) AS contributing_families first(response_authority) AS response_authority first(automatic_containment) AS automatic_containment by risk_object run_id
+| eval result=if(effective_score=70 AND score_tier="contain-eligible" AND mvcount(contributing_families)=2,"PASS","FAIL")
+| table risk_object run_id effective_score score_tier contributing_signals contributing_families contributing_source_events response_authority automatic_containment result

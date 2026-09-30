@@ -1,0 +1,9 @@
+index=rmm_risk earliest=-30d@d latest=now
+| eval expires_num=tonumber(expires_at)
+| eval valid=if(isnotnull(risk_object) AND isnotnull(signal_family) AND isnotnull(signal_id) AND isnotnull(dedup_key) AND isnotnull(risk_score) AND isnotnull(expires_num),1,0)
+| eventstats count as dedup_occurrences by dedup_key
+| stats count as total_contributions sum(eval(if(valid=0,1,0))) as malformed_contributions sum(eval(if(dedup_occurrences>1,1,0))) as duplicate_events sum(eval(if(expires_num<=now(),1,0))) as expired_retained sum(eval(if(_indextime>expires_num,1,0))) as arrived_after_expiry sum(eval(if(valid=1 AND expires_num>now(),1,0))) as active_contributions max(_time) as newest_risk_event
+| appendcols [ search index=wazuh-alerts sourcetype="wazuh:alerts" earliest=-30d@d latest=now | stats max(_time) as newest_wazuh_event ]
+| eval newest_risk_event_utc=strftime(newest_risk_event,"%Y-%m-%dT%H:%M:%SZ"), newest_wazuh_event_utc=strftime(newest_wazuh_event,"%Y-%m-%dT%H:%M:%SZ"), wazuh_feed_age_seconds=now()-newest_wazuh_event
+| eval duplicate_status=if(duplicate_events=0,"PASS","FAIL"), malformed_status=if(malformed_contributions=0,"PASS","FAIL"), feed_status=if(wazuh_feed_age_seconds<86400,"CURRENT","STALE")
+| table total_contributions active_contributions expired_retained arrived_after_expiry duplicate_events duplicate_status malformed_contributions malformed_status newest_risk_event_utc newest_wazuh_event_utc wazuh_feed_age_seconds feed_status

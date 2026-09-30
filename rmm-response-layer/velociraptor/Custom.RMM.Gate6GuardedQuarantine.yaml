@@ -1,0 +1,171 @@
+name: Custom.RMM.Gate6GuardedQuarantine
+description: |
+  Server-side Gate 6 guard for one manual WS02 controlled-positive run. Apply
+  requires the exact WS02 identity, an exact score of 70, a completed Gate 4
+  evidence flow carrying the same RunId and both expected hashes, current
+  approval, console confirmation, and snapshot confirmation. A prior Apply
+  client flow with the same RunId causes a denial before another action flow is
+  launched. Remove remains available for the exact WS02 identity.
+author: purplepyram1d
+type: SERVER
+required_permissions:
+  - COLLECT_CLIENT
+parameters:
+  - name: TargetClientId
+  - name: ExpectedHostname
+  - name: Action
+    description: Apply or Remove.
+  - name: RunId
+  - name: Score
+    type: int
+  - name: EvidenceFlowId
+  - name: ExpectedHash1
+  - name: ExpectedHash2
+  - name: Approval
+    description: Apply requires the exact value APPROVED.
+  - name: ConsoleVerified
+    type: bool
+  - name: SnapshotVerified
+    type: bool
+  - name: PolicyName
+    default: RMMGate6Quarantine
+sources:
+  - query: |
+      LET RequestedRunId <= RunId
+      LET RequestedEvidenceFlowId <= EvidenceFlowId
+      LET RequestedHash1 <= ExpectedHash1
+      LET RequestedHash2 <= ExpectedHash2
+
+      LET client_map <= to_dict(item={
+        SELECT client_id AS _key, os_info.hostname AS _value FROM clients() })
+      LET actual_hostname <= get(item=client_map, field=TargetClientId)
+      LET identity_allowed <= TargetClientId = 'C.e07d49d200b14e75'
+        AND actual_hostname =~ '(?i)^WS02$'
+        AND ExpectedHostname =~ '(?i)^WS02$'
+      LET action_valid <= Action =~ '^(Apply|Remove)$'
+      LET run_valid <= RequestedRunId =~ '^RUN-[0-9]{8}-G6[A-Z0-9-]+$'
+      LET hashes_valid <= RequestedHash1 =~ '^[A-Fa-f0-9]{64}$'
+        AND RequestedHash2 =~ '^[A-Fa-f0-9]{64}$'
+
+      LET evidence_flows <= SELECT session_id,
+                                   state,
+                                   total_collected_rows,
+                                   request.artifacts[0] AS RequestedArtifact,
+                                   get(item=to_dict(item={
+                                     SELECT key AS _key, value AS _value
+                                     FROM foreach(row=request.specs[0].parameters.env)
+                                   }), field='RunId') AS EvidenceRunId,
+                                   join(array=artifacts_with_results, sep=',') AS ResultArtifacts
+                            FROM flows(client_id=TargetClientId)
+                            WHERE session_id = RequestedEvidenceFlowId
+
+      LET evidence_flow_ready <= len(list=evidence_flows) = 1
+        AND get(item=evidence_flows[0], field='state') = 'FINISHED'
+        AND get(item=evidence_flows[0], field='total_collected_rows') > 0
+        AND get(item=evidence_flows[0], field='RequestedArtifact') = 'Custom.RMM.Gate4Enrich'
+        AND get(item=evidence_flows[0], field='EvidenceRunId') = RequestedRunId
+        AND get(item=evidence_flows[0], field='ResultArtifacts') =~ 'Custom.RMM.Gate4Enrich/Signer'
+
+      LET signer_rows <= SELECT RunId,
+                                SHA256,
+                                SignerState
+                         FROM source(
+                           client_id=TargetClientId,
+                           flow_id=RequestedEvidenceFlowId,
+                           artifact='Custom.RMM.Gate4Enrich/Signer')
+                         WHERE RunId = RequestedRunId
+                           AND SHA256 =~ '^[A-Fa-f0-9]{64}$'
+
+      LET hash1_rows <= SELECT *
+                        FROM signer_rows
+                        WHERE SHA256 =~ format(format='(?i)^%s$', args=[RequestedHash1])
+      LET hash2_rows <= SELECT *
+                        FROM signer_rows
+                        WHERE SHA256 =~ format(format='(?i)^%s$', args=[RequestedHash2])
+      LET evidence_hashes_ready <= hashes_valid
+        AND len(list=hash1_rows) > 0
+        AND len(list=hash2_rows) > 0
+
+      LET candidate_action_flows <= SELECT session_id,
+                                            state,
+                                            request.artifacts[0] AS RequestedArtifact,
+                                            get(item=to_dict(item={
+                                              SELECT key AS _key, value AS _value
+                                              FROM foreach(row=request.specs[0].parameters.env)
+                                            }), field='RunId') AS FlowRunId,
+                                            get(item=to_dict(item={
+                                              SELECT key AS _key, value AS _value
+                                              FROM foreach(row=request.specs[0].parameters.env)
+                                            }), field='RemovePolicy') AS RemovePolicy
+                                     FROM flows(client_id=TargetClientId)
+
+      LET prior_apply_flows <= SELECT *
+                               FROM candidate_action_flows
+                               WHERE RequestedArtifact = 'Custom.RMM.Gate6Quarantine'
+                                 AND FlowRunId = RequestedRunId
+                                 AND NOT RemovePolicy = 'Y'
+      LET prior_apply_count <= len(list=prior_apply_flows)
+
+      LET apply_ready <= Action = 'Apply'
+        AND Score = 70
+        AND evidence_flow_ready
+        AND evidence_hashes_ready
+        AND Approval = 'APPROVED'
+        AND ConsoleVerified
+        AND SnapshotVerified
+        AND prior_apply_count = 0
+      LET remove_ready <= Action = 'Remove'
+      LET allowed <= identity_allowed
+        AND action_valid
+        AND run_valid
+        AND (apply_ready OR remove_ready)
+
+      SELECT * FROM if(
+        condition=allowed,
+        then={
+          SELECT timestamp(epoch=now()) AS DecisionTime,
+                 RequestedRunId AS RunId,
+                 TargetClientId AS TargetClientId,
+                 actual_hostname AS ActualHostname,
+                 Action AS Action,
+                 Score AS Score,
+                 RequestedEvidenceFlowId AS EvidenceFlowId,
+                 prior_apply_count AS PriorApplyCount,
+                 'ALLOW' AS Decision,
+                 collect_client(
+                   client_id=TargetClientId,
+                   artifacts='Custom.RMM.Gate6Quarantine',
+                   env=dict(
+                     RunId=RequestedRunId,
+                     PolicyName=PolicyName,
+                     RemovePolicy=if(condition=Action='Remove', then='Y', else='')
+                   )).flow_id AS FlowId
+          FROM scope()
+        },
+        else={
+          SELECT timestamp(epoch=now()) AS DecisionTime,
+                 RequestedRunId AS RunId,
+                 TargetClientId AS TargetClientId,
+                 actual_hostname AS ActualHostname,
+                 Action AS Action,
+                 Score AS Score,
+                 RequestedEvidenceFlowId AS EvidenceFlowId,
+                 prior_apply_count AS PriorApplyCount,
+                 'DENY' AS Decision,
+                 if(condition=NOT identity_allowed,
+                    then='target is not the exact WS02 client and hostname pair',
+                    else=if(condition=NOT action_valid,
+                      then='invalid action',
+                      else=if(condition=NOT run_valid,
+                        then='invalid Gate 6 RunId',
+                        else=if(condition=Action='Apply' AND NOT Score=70,
+                          then='controlled-positive score must equal 70',
+                          else=if(condition=Action='Apply' AND NOT evidence_flow_ready,
+                            then='Gate 4 evidence flow is missing, incomplete, wrong-artifact, or wrong-RunId',
+                            else=if(condition=Action='Apply' AND NOT evidence_hashes_ready,
+                              then='Gate 4 signer results do not contain both expected hashes',
+                              else=if(condition=Action='Apply' AND prior_apply_count > 0,
+                                then='duplicate Apply rejected before client action launch',
+                                else='Apply requires approval, console, and snapshot confirmation'))))))) AS Reason
+          FROM scope()
+        })
