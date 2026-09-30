@@ -1,10 +1,10 @@
-# lab-techniques
+# Lab techniques
 
-Small reproduction helpers and build notes from the validated [Part 2 writeup](https://purplepyram1d.github.io/blog/posts/one-rmm-is-it-two-is-an-incident.html). Run the `.ps1` scripts on the Windows endpoint, elevated; adjust the RMM install paths at the top of each. They make each Wazuh rule fire on demand so you can inspect the underlying event and alert.
+These PowerShell helpers recreate the detection tests from the [purplepyram1d walkthrough](https://purplepyram1d.github.io/blog/posts/one-rmm-is-it-two-is-an-incident.html). Run them on a Windows test endpoint after reviewing their paths and parameters.
 
-- `trigger-rmm-eid1.ps1` - normal and renamed AnyDesk launches for rule 100210.
-- `test-multiplicity.ps1` - positive distinct-vendor mode and a one-vendor negative-control mode for rule 100211.
-- `test-causal-spawn.ps1` - one RMM-named parent launches another vendor; add `-AsSystem` for 100214, collect with Velociraptor, then rerun with `-Cleanup`.
-- `GOTCHAS.md` - the things that cost time, kept short.
+- `trigger-rmm-eid1.ps1` tests identification, including a renamed binary.
+- `test-multiplicity.ps1` tests two vendors and a one-vendor negative control.
+- `test-causal-spawn.ps1` tests the parent-path rule with a controlled fixture.
+- `GOTCHAS.md` records the build lessons and test limits.
 
-The current helpers use `C:\Lab` rather than `C:\Windows\Temp`. Wazuh can select a higher-level built-in rule for a Temp-staged executable, which hides rule `100210` and breaks downstream correlation. Treat the helpers as lab code and review their parameters before every run.
+These are lab reproduction helpers, not evidence of a genuine RMM-to-RMM parent chain.
